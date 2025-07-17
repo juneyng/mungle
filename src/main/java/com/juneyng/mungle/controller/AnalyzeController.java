@@ -25,7 +25,6 @@ public class AnalyzeController {
                 "message", "괜찮아요, 당신은 충분히 잘하고 있어요."
         ));
     }
-
     @GetMapping("/emotions")
     public ResponseEntity<?> getEmotions() {
         return ResponseEntity.ok(emotionService.getEmotions());
