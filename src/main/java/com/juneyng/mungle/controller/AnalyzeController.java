@@ -37,7 +37,7 @@ public class AnalyzeController {
         ));
     }
 
-    // 테스트용 엔드포인트 (선택 유지 또는 제거)
+    // 테스트용
     @GetMapping("/emotions")
     public ResponseEntity<?> getEmotions() {
         return ResponseEntity.ok(emotionService.getEmotions());
