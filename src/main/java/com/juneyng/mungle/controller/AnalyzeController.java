@@ -1,18 +1,24 @@
 package com.juneyng.mungle.controller;
 
 import com.juneyng.mungle.service.EmotionService;
+import com.juneyng.mungle.service.HuggingFaceEmotionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import reactor.core.publisher.Mono;
 
 import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
 public class AnalyzeController {
-    private final EmotionService emotionService;
 
-    public AnalyzeController(EmotionService emotionService) {
+    private final EmotionService emotionService;
+    private final HuggingFaceEmotionService huggingFaceEmotionService;
+
+    public AnalyzeController(EmotionService emotionService,
+                             HuggingFaceEmotionService huggingFaceEmotionService) {
         this.emotionService = emotionService;
+        this.huggingFaceEmotionService = huggingFaceEmotionService;
     }
 
     @PostMapping("/analyze")
@@ -37,9 +43,14 @@ public class AnalyzeController {
         ));
     }
 
-    // 테스트용 엔드포인트 (선택 유지 또는 제거)
     @GetMapping("/emotions")
     public ResponseEntity<?> getEmotions() {
         return ResponseEntity.ok(emotionService.getEmotions());
+    }
+
+    @GetMapping("/test-ai")
+    public Mono<ResponseEntity<?>> testAi(@RequestParam String text) {
+        return huggingFaceEmotionService.analyzeText(text)
+                .map(ResponseEntity::ok);
     }
 }
