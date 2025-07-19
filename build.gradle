@@ -33,6 +33,8 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	implementation 'javax.annotation:javax.annotation-api:1.3.2'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux' // HTTP 요청용
+	implementation 'io.projectreactor:reactor-core' // 비동기 처리
 }
 
 tasks.named('test') {
