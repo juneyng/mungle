@@ -36,7 +36,6 @@ public class HuggingFaceEmotionService {
                 .header("Authorization", "Bearer " + apiKey)
                 .bodyValue(requestBody)
                 .retrieve()
-                // 중첩 배열 구조로 변경: List<List<Map<String, Object>>>
                 .bodyToMono(new ParameterizedTypeReference<List<List<Map<String, Object>>>>() {})
                 .map(this::processResponse)
                 .onErrorResume(this::handleError);
