@@ -18,19 +18,27 @@ import java.util.Map;
 public class HuggingFaceEmotionService {
 
     private final WebClient webClient;
+    private final WebClient translateClient;
 
     @Value("${huggingface.api.key}")
     private String apiKey;
+
+    @Value("${deepl.api.key}")
+    private String deepLApiKey;
 
     public HuggingFaceEmotionService(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder
                 .baseUrl("https://api-inference.huggingface.co/models/j-hartmann/emotion-english-distilroberta-base")
                 .build();
+        this.translateClient = webClientBuilder
+                .baseUrl("https://api-free.deepl.com/v2/translate")
+                .build();
     }
 
     public Mono<Map<String, Object>> analyzeText(String text) {
+        String translatedText = translateText(text, "KO", "EN"); // 한국어에서 영어로 번역
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("inputs", text != null ? text : "");
+        requestBody.put("inputs", translatedText != null ? translatedText : text);
 
         return webClient.post()
                 .header("Authorization", "Bearer " + apiKey)
@@ -41,14 +49,36 @@ public class HuggingFaceEmotionService {
                 .onErrorResume(this::handleError);
     }
 
-    // 중첩 배열 처리로 메서드 시그니처 변경
+    private String translateText(String text, String sourceLang, String targetLang) {
+        try {
+            Map<String, Object> requestBody = new HashMap<>();
+            requestBody.put("text", new String[]{text}); // 배열로 변경
+            requestBody.put("source_lang", sourceLang);
+            requestBody.put("target_lang", targetLang);
+
+            Map<String, Object> response = translateClient.post()
+                    .header("Authorization", "DeepL-Auth-Key " + deepLApiKey)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+                    .block();
+
+            System.out.println("DeepL Response: " + response);
+            @SuppressWarnings("unchecked")
+            List<Map<String, String>> translations = (List<Map<String, String>>) response.get("translations");
+            return translations != null && !translations.isEmpty() ? translations.get(0).get("text") : text;
+        } catch (Exception e) {
+            System.out.println("번역 오류: " + e.getMessage());
+            return text;
+        }
+    }
+
     private Map<String, Object> processResponse(List<List<Map<String, Object>>> response) {
         System.out.println("Raw Response: " + response);
         if (response == null || response.isEmpty() || response.get(0).isEmpty()) {
             return createDefaultResponse("분석할 데이터가 없습니다.");
         }
 
-        // 첫 번째 배열의 첫 번째 결과에서 가장 높은 확률의 감정 찾기
         List<Map<String, Object>> emotions = response.get(0);
         Map<String, Object> highestEmotion = emotions.stream()
                 .max((e1, e2) -> {
@@ -77,7 +107,7 @@ public class HuggingFaceEmotionService {
         output.put("confidence", score != null ? score : 1.0);
         output.put("message", comfortMessage);
         output.put("originalLabel", label);
-        output.put("allEmotions", emotions); // 디버깅용으로 모든 감정 결과 포함
+        output.put("allEmotions", emotions);
         return output;
     }
 
@@ -113,7 +143,6 @@ public class HuggingFaceEmotionService {
 
     private String mapEmotionToEnglish(String label) {
         if (label == null) return "neutral";
-
         return switch (label.toLowerCase()) {
             case "anger" -> "anger";
             case "disgust" -> "disgust";
@@ -130,7 +159,6 @@ public class HuggingFaceEmotionService {
         if (confidence < 0.7) {
             return "지금 느끼는 감정이 무엇이든, 그대로의 당신이 소중해요.";
         }
-
         return switch (emotion) {
             case "joy" -> "좋은 기운이 느껴져요! 이런 순간들이 계속 이어지길 바라요 ✨";
             case "sadness" -> "힘든 시간을 보내고 계시는군요. 혼자가 아니니까 천천히 괜찮아지실 거예요 💙";
