@@ -1,11 +1,13 @@
 package com.juneyng.mungle.controller;
 
+import com.juneyng.mungle.domain.EmotionRecord; // 추가
 import com.juneyng.mungle.service.EmotionService;
 import com.juneyng.mungle.service.HuggingFaceEmotionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -22,35 +24,30 @@ public class AnalyzeController {
     }
 
     @PostMapping("/analyze")
-    public ResponseEntity<?> analyzeText(@RequestBody Map<String, String> request) {
+    public Mono<ResponseEntity<Map<String, Object>>> analyzeText(@RequestBody Map<String, String> request) {
         String text = request.get("text");
         if (text == null || text.trim().isEmpty()) {
-            return ResponseEntity.badRequest().body(Map.of("error", "텍스트를 입력해주세요."));
+            Map<String, Object> errorResponse = Map.of("error", "텍스트를 입력해주세요.");
+            return Mono.just(ResponseEntity.badRequest().body(errorResponse));
         }
 
-        Map<String, Object> emotion = emotionService.analyzeText(text);
-        if (emotion == null) {
-            return ResponseEntity.ok(Map.of(
-                    "emotion", "중립",
-                    "message", "괜찮아요, 당신의 마음이 편안했으면 좋겠어요."
-            ));
-        }
-
-        String message = emotionService.getRandomSentence(emotion);
-        return ResponseEntity.ok(Map.of(
-                "emotion", emotion.get("emotion"),
-                "message", message
-        ));
-    }
-
-    @GetMapping("/emotions")
-    public ResponseEntity<?> getEmotions() {
-        return ResponseEntity.ok(emotionService.getEmotions());
-    }
-
-    @GetMapping("/test-ai")
-    public Mono<ResponseEntity<?>> testAi(@RequestParam String text) {
         return huggingFaceEmotionService.analyzeText(text)
-                .map(ResponseEntity::ok);
+                .doOnNext(result -> emotionService.saveEmotion(
+                        text,
+                        (String) result.get("emotion"),
+                        (Double) result.get("confidence"),
+                        (String) result.get("message")
+                ))
+                .map(ResponseEntity::ok)
+                .onErrorReturn(ResponseEntity.ok(Map.of(
+                        "emotion", "중립",
+                        "confidence", 0.0,
+                        "message", "네트워크 오류로 분석에 실패했어요. 중립으로 처리됩니다."
+                )));
+    }
+
+    @GetMapping("/history")
+    public ResponseEntity<List<EmotionRecord>> getHistory() { // 타입 명시 유지
+        return ResponseEntity.ok(emotionService.getAllRecords());
     }
 }
