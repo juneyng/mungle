@@ -50,4 +50,10 @@ public class AnalyzeController {
     public ResponseEntity<List<EmotionRecord>> getHistory() { // 타입 명시 유지
         return ResponseEntity.ok(emotionService.getAllRecords());
     }
+
+    @DeleteMapping("/history/{id}")
+    public ResponseEntity<Void> deleteHistory(@PathVariable Long id) {
+        emotionService.deleteEmotion(id);
+        return ResponseEntity.noContent().build();
+    }
 }

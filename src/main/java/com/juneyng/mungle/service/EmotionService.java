@@ -27,4 +27,8 @@ public class EmotionService {
     public List<EmotionRecord> getAllRecords() {
         return repository.findAll();
     }
+
+    public void deleteEmotion(Long id) {
+        repository.deleteById(id);
+    }
 }
